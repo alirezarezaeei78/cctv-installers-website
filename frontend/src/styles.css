@@ -1,0 +1,70 @@
+/* Custom styles for the CCTV marketplace frontend.
+
+   These styles complement Bootstrap and animate.css. They improve the
+   appearance of the hero section, progress bars, form steps, and
+   verification badges. Feel free to adjust colors and sizes to better
+   align with your brand once you replace placeholder images and copy.
+*/
+
+/* Smooth progress bar transitions */
+.progress-bar {
+  transition: width 0.4s ease;
+}
+
+/* Animate the appearance of each step in the request wizard */
+.form-step {
+  animation: fadeIn 0.4s ease;
+}
+
+/* Hero section styling for the home page */
+.hero-section {
+  background: linear-gradient(90deg, #0d47a1, #1976d2);
+  color: #fff;
+  padding: 4rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.hero-section h1,
+.hero-section p {
+  color: #fff;
+}
+
+/* Verification badges for installer profiles. Levels correspond to
+   identity, skill, and business verification tiers. */
+.verification-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.verification-badge.level0 {
+  background-color: #f1f5f9;
+  color: #374151;
+}
+
+.verification-badge.level1 {
+  background-color: #e0f2fe;
+  color: #0284c7;
+}
+
+.verification-badge.level2 {
+  background-color: #e0ffe0;
+  color: #15803d;
+}
+
+.verification-badge.level3 {
+  background-color: #fef9c3;
+  color: #ca8a04;
+}
+
+/* RTL helpers to ensure proper alignment when not handled automatically by
+   Bootstrap. Use the .rtl-text class on containers where text should
+   explicitly flow right to left. */
+.rtl-text {
+  direction: rtl;
+  text-align: right;
+}

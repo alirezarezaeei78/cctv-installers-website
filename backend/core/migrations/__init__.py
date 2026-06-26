@@ -1,0 +1,1 @@
+"""Initial migrations package for the core app."""
