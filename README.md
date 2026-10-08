@@ -44,6 +44,8 @@ npm start
 
 The development frontend runs at `http://localhost:3000` and proxies API requests to `http://localhost:8000`.
 
+Use Node.js 20 or newer for the frontend. Axios and React Router have been updated, and the npm lockfile includes compatible dependency fixes. The frontend still uses Create React App 5; its dependency audit retains findings in the legacy build/test toolchain. Plan a build-system migration and deployment review before a production release. `npm run build` has been checked, but it does not establish production security.
+
 ## Main routes
 
 - `/` — homepage
