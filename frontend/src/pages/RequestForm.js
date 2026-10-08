@@ -53,14 +53,12 @@ function RequestForm() {
       formData.append('buyer_type', buyerType);
       formData.append('property_type', propertyType);
       formData.append('address', address);
-      formData.append('preferred_date', preferredDate);
+      if (preferredDate) formData.append('preferred_date', preferredDate);
       formData.append('preferred_time', preferredTime);
       formData.append('urgency', urgency);
       // Append files if any
       files.forEach((file) => formData.append('uploaded_files', file));
-      await axios.post('/api/requests/', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      await axios.post('/api/requests/', formData);
       setMessage('درخواست شما با موفقیت ثبت شد.');
       // Reset fields
       setStep(1);

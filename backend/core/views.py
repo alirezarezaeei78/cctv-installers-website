@@ -1,103 +1,114 @@
-"""
-Views for the CCTV marketplace API.
-
-This module defines API endpoints using Django REST Framework. It
-provides basic functionality for registering users, listing installers,
-posting service requests, and submitting quotes. Authentication is
-implemented via the Django session backend for simplicity. This code can
-be extended to add token authentication or permission checks as needed.
-"""
+"""Session-authenticated marketplace endpoints."""
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import User
+from django.db import IntegrityError
+from django.db.models import Q
+from django.http import JsonResponse
+from django.middleware.csrf import get_token
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.http import require_GET
 from rest_framework import generics, views, status
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Profile, ServiceRequest, Quote
 from .serializers import (
-    UserSerializer,
-    ProfileSerializer,
-    ServiceRequestSerializer,
-    QuoteSerializer,
+    UserSerializer, RegistrationSerializer, ProfileSerializer,
+    ServiceRequestSerializer, QuoteSerializer,
 )
 
 
+@require_GET
+def csrf_token(request):
+    """Bootstrap the CSRF cookie before a browser submits a form."""
+    return JsonResponse({'csrfToken': get_token(request)})
+
+
+def require_role(user, role):
+    if not Profile.objects.filter(user=user, role=role).exists():
+        raise PermissionDenied('Your account cannot perform this action.')
+
+
+@method_decorator(csrf_protect, name='dispatch')
 class RegisterView(views.APIView):
-    """Register a new user and associated profile."""
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        email = request.data.get('email', '')
-        role = request.data.get('role', Profile.ROLE_CUSTOMER)
-        phone = request.data.get('phone', '')
-        business_name = request.data.get('business_name', '')
-        address = request.data.get('address', '')
-        bio = request.data.get('bio', '')
-        if not username or not password:
-            return Response({'detail': 'نام کاربری و گذرواژه الزامی است.'}, status=status.HTTP_400_BAD_REQUEST)
-        if User.objects.filter(username=username).exists():
-            return Response({'detail': 'این نام کاربری قبلاً ثبت شده است.'}, status=status.HTTP_400_BAD_REQUEST)
-        user = User.objects.create_user(username=username, password=password, email=email)
-        Profile.objects.create(
-            user=user,
-            role=role,
-            phone=phone,
-            business_name=business_name,
-            address=address,
-            bio=bio,
-        )
+        serializer = RegistrationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = serializer.save()
+        except IntegrityError:
+            raise ValidationError({'username': 'This username is already registered.'})
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
+@method_decorator(csrf_protect, name='dispatch')
 class LoginView(views.APIView):
-    """Authenticate a user and create a session."""
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        user = authenticate(request, username=username, password=password)
+        user = authenticate(request, username=request.data.get('username'),
+                            password=request.data.get('password'))
         if user is None:
-            return Response({'detail': 'نام کاربری یا گذرواژه اشتباه است.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'نام کاربری یا گذرواژه اشتباه است.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         login(request, user)
-        return Response({'detail': 'ورود موفقیت آمیز بود.'}, status=status.HTTP_200_OK)
+        return Response({'detail': 'ورود موفقیت آمیز بود.'})
 
 
 class InstallerListView(generics.ListAPIView):
-    """List all installer profiles."""
+    permission_classes = [AllowAny]
     serializer_class = ProfileSerializer
-
-    def get_queryset(self):
-        return Profile.objects.filter(role=Profile.ROLE_INSTALLER)
+    queryset = Profile.objects.filter(role=Profile.ROLE_INSTALLER).select_related('user')
 
 
 class ServiceRequestListCreateView(generics.ListCreateAPIView):
-    """List existing service requests or create a new request."""
-    queryset = ServiceRequest.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ServiceRequestSerializer
 
+    def get_queryset(self):
+        queryset = ServiceRequest.objects.select_related('customer').prefetch_related('attachments')
+        if Profile.objects.filter(user=self.request.user, role=Profile.ROLE_INSTALLER).exists():
+            return queryset
+        return queryset.filter(customer=self.request.user)
+
     def perform_create(self, serializer):
-        serializer.save()
+        require_role(self.request.user, Profile.ROLE_CUSTOMER)
+        serializer.save(customer=self.request.user)
 
 
 class ServiceRequestDetailView(generics.RetrieveAPIView):
-    """Retrieve a single service request and its quotes."""
-    queryset = ServiceRequest.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = ServiceRequestSerializer
+    get_queryset = ServiceRequestListCreateView.get_queryset
 
 
 class QuoteCreateView(generics.CreateAPIView):
-    """Create a quote for a specific service request."""
-    queryset = Quote.objects.all()
+    permission_classes = [IsAuthenticated]
     serializer_class = QuoteSerializer
+
+    def perform_create(self, serializer):
+        require_role(self.request.user, Profile.ROLE_INSTALLER)
+        serializer.save(installer=self.request.user)
 
 
 class QuoteListView(generics.ListAPIView):
-    """List all quotes for a given service request via query param ``request``."""
+    permission_classes = [IsAuthenticated]
     serializer_class = QuoteSerializer
 
     def get_queryset(self):
+        queryset = Quote.objects.filter(
+            Q(installer=self.request.user) | Q(request__customer=self.request.user)
+        ).select_related('installer', 'request')
         request_id = self.request.query_params.get('request')
-        qs = Quote.objects.all()
         if request_id:
-            qs = qs.filter(request_id=request_id)
-        return qs
+            try:
+                request_id = int(request_id)
+                if request_id <= 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                raise ValidationError({'request': 'Expected a positive request ID.'})
+            queryset = queryset.filter(request_id=request_id)
+        return queryset

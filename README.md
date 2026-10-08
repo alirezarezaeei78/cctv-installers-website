@@ -21,12 +21,19 @@ Use Python, Node.js, and npm. Create and activate a Python virtual environment b
 From `backend/`:
 
 ```sh
-python -m pip install django djangorestframework djangorestframework-simplejwt django-cors-headers
+python -m pip install -r requirements.txt
+python manage.py test
 python manage.py migrate
 python manage.py runserver
 ```
 
-The backend currently has no dependency lockfile. Review its configuration and dependency compatibility for your environment. Django administration is available at `http://127.0.0.1:8000/admin/` and the API at `http://127.0.0.1:8000/api/`.
+The requirements specify compatible minor-version ranges. Django administration is available at `http://127.0.0.1:8000/admin/` and the API at `http://127.0.0.1:8000/api/`.
+
+Session-based forms obtain a CSRF cookie from `GET /api/csrf/` and send `X-CSRFToken` on writes. The frontend configures Axios for this automatically. See [Django's AJAX CSRF documentation](https://docs.djangoproject.com/en/5.2/howto/csrf/).
+
+Customers create and view their own requests. Signed-in installers can browse requests and submit positive-price quotes for open jobs. Quotes are visible to the customer and their quoting installer; clients cannot mark a quote accepted during creation. Registration validates roles, passwords, and unique usernames.
+
+For deployment, set `DJANGO_DEBUG=false`, `DJANGO_SECRET_KEY`, `DJANGO_ALLOWED_HOSTS`, `DJANGO_CORS_ALLOWED_ORIGINS`, and `DJANGO_CSRF_TRUSTED_ORIGINS` in the process environment. Secure cookies are enabled when debug is off. Configure HTTPS and protected media storage before serving customer uploads.
 
 In a second terminal, from `frontend/`:
 

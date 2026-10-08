@@ -7,6 +7,9 @@ API responses consumed by the React front‑end.
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from .models import Profile, ServiceRequest, Quote, RequestAttachment
 
 
@@ -16,12 +19,42 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email']
 
 
+class RegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    role = serializers.ChoiceField(choices=Profile.ROLE_CHOICES, default=Profile.ROLE_CUSTOMER)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    business_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'role', 'phone', 'business_name', 'address', 'bio']
+
+    def validate(self, attrs):
+        user = User(username=attrs['username'], email=attrs.get('email', ''))
+        try:
+            validate_password(attrs['password'], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({'password': error.messages}) from error
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        profile_data = {key: validated_data.pop(key) for key in
+                        ('role', 'phone', 'business_name', 'address', 'bio') if key in validated_data}
+        user = User.objects.create_user(**validated_data)
+        Profile.objects.create(user=user, **profile_data)
+        return user
+
+
 class ProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
 
     class Meta:
         model = Profile
         fields = ['id', 'user', 'role', 'phone', 'business_name', 'address', 'bio', 'verification_level']
+        read_only_fields = ['verification_level']
 
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
@@ -56,6 +89,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             'attachments',
             'uploaded_files',
         ]
+        read_only_fields = ['status']
 
     def get_attachments(self, obj):
         # Serialize attachment metadata (URL and upload time) for the API
@@ -68,11 +102,10 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             for att in obj.attachments.all()
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         uploaded_files = validated_data.pop('uploaded_files', [])
-        request = self.context['request']
-        user = request.user if request.user.is_authenticated else None
-        service_request = ServiceRequest.objects.create(customer=user, **validated_data)
+        service_request = ServiceRequest.objects.create(**validated_data)
         # Create attachment records for each uploaded file.
         for file in uploaded_files:
             RequestAttachment.objects.create(request=service_request, file=file)
@@ -85,8 +118,14 @@ class QuoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quote
         fields = ['id', 'request', 'installer', 'message', 'price', 'created_at', 'accepted']
+        read_only_fields = ['accepted']
 
-    def create(self, validated_data):
-        request = self.context['request']
-        user = request.user if request.user.is_authenticated else None
-        return Quote.objects.create(installer=user, **validated_data)
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Price must be greater than zero.')
+        return value
+
+    def validate_request(self, value):
+        if value.status != 'open':
+            raise serializers.ValidationError('This service request is closed.')
+        return value
