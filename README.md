@@ -1,218 +1,50 @@
-\# NasabDoorbin
+# NasabDoorbin
 
+A Persian CCTV installation marketplace with a **Django REST Framework backend** and **React frontend**.
 
+The application supports customer installation requests, installer profiles, registration, and service-request management through a Persian RTL interface.
 
-NasabDoorbin is a Persian CCTV installation marketplace built with a Django backend and React frontend.
+## Application structure
 
+| Path | Purpose |
+| --- | --- |
+| `backend/config/` | Django project configuration |
+| `backend/core/` | Application models, API, and service logic |
+| `backend/manage.py` | Django management entry point |
+| `frontend/src/` | React pages, components, and styling |
+| `frontend/public/` | Frontend static assets |
 
+## Development setup
 
-The platform helps customers submit CCTV installation requests, compare installer profiles, and manage service requests through a trust-focused marketplace structure.
+Use Python, Node.js, and npm. Create and activate a Python virtual environment before installing backend packages.
 
+From `backend/`:
 
+```sh
+python -m pip install django djangorestframework djangorestframework-simplejwt django-cors-headers
+python manage.py migrate
+python manage.py runserver
+```
 
-\## Features
+The backend currently has no dependency lockfile. Review its configuration and dependency compatibility for your environment. Django administration is available at `http://127.0.0.1:8000/admin/` and the API at `http://127.0.0.1:8000/api/`.
 
+In a second terminal, from `frontend/`:
 
-
-\- Persian RTL user interface
-
-\- React frontend
-
-\- Django backend
-
-\- Django REST Framework API
-
-\- Django admin panel
-
-\- Customer and installer registration
-
-\- Installer profile listing
-
-\- Multi-step CCTV installation request form
-
-\- Service request management
-
-\- Quote model and API structure
-
-\- SEO-focused homepage structure
-
-\- Custom CSS and UI animations
-
-
-
-\## Tech Stack
-
-
-
-\### Backend
-
-
-
-\- Python
-
-\- Django
-
-\- Django REST Framework
-
-\- SQLite
-
-\- Django Admin
-
-
-
-\### Frontend
-
-
-
-\- React
-
-\- React Router
-
-\- Axios
-
-\- Bootstrap
-
-\- Custom CSS
-
-\- RTL Persian layout
-
-
-
-\## Project Structure
-
-
-
-cctv\_marketplace/
-
-\- backend/
-
-\- frontend/
-
-\- README.md
-
-
-
-\## Backend Setup
-
-
-
-Go to the backend folder:
-
-
-
-cd C:\\Users\\Rezaei\\Desktop\\cctv\_marketplace\\backend
-
-
-
-Install dependencies:
-
-
-
-C:\\Users\\Rezaei\\Desktop\\relbench\\.conda\\python.exe -m pip install django djangorestframework djangorestframework-simplejwt django-cors-headers
-
-
-
-Run migrations:
-
-
-
-C:\\Users\\Rezaei\\Desktop\\relbench\\.conda\\python.exe manage.py makemigrations
-
-C:\\Users\\Rezaei\\Desktop\\relbench\\.conda\\python.exe manage.py migrate
-
-
-
-Run backend:
-
-
-
-C:\\Users\\Rezaei\\Desktop\\relbench\\.conda\\python.exe manage.py runserver
-
-
-
-Backend URLs:
-
-
-
-http://127.0.0.1:8000/admin/
-
-http://127.0.0.1:8000/api/
-
-
-
-\## Frontend Setup
-
-
-
-Open another PowerShell window:
-
-
-
-cd C:\\Users\\Rezaei\\Desktop\\cctv\_marketplace\\frontend
-
-
-
-Install packages:
-
-
-
-npm install
-
-npm install react-scripts@5.0.1 --save
-
-
-
-Run frontend:
-
-
-
+```sh
+npm ci
 npm start
+```
 
+The development frontend runs at `http://localhost:3000` and proxies API requests to `http://localhost:8000`.
 
+## Main routes
 
-Frontend URL:
+- `/` — homepage
+- `/installers` — installer directory
+- `/request` — installation-request form
+- `/register` — customer and installer registration
+- `/login` — account login
 
+## Development scope
 
-
-http://localhost:3000
-
-
-
-\## Main Pages
-
-
-
-\- / : Homepage
-
-\- /installers : Installer directory
-
-\- /request : Multi-step CCTV installation request form
-
-\- /register : Customer / installer registration
-
-\- /login : User login
-
-
-
-\## GitHub
-
-
-
-To push changes:
-
-
-
-git add .
-
-git commit -m "Update project"
-
-git push
-
-
-
-\## License
-
-
-
-This project is private and currently has no public license.
-
+This is a private development repository. Validate authentication, service workflows, database configuration, and deployment settings before using it in production. Keep local credentials and customer information outside source control.
